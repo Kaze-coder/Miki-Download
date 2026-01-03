@@ -144,8 +144,13 @@ client.on('interactionCreate', async (interaction) => {
         if (format === 'mp3') {
           command = `yt-dlp -x --audio-format mp3 --audio-quality 192 -o "${outputPath}.mp3" "${url}"`;
         } else if (['jpg', 'png', 'webp'].includes(format)) {
-          // For images from social media, download with all thumbnails
-          command = `yt-dlp --write-all-thumbnails -o "${outputPath}" "${url}"`;
+          // For images from social media, especially Instagram photos
+          // Use multiple options to handle different content types
+          if (url.includes('instagram.com')) {
+            command = `yt-dlp --ignore-no-video-for-get_video_info --write-all-thumbnails -o "${outputPath}" "${url}"`;
+          } else {
+            command = `yt-dlp --write-all-thumbnails -o "${outputPath}" "${url}"`;
+          }
         } else {
           // For video - try best quality mp4, fallback to best available
           command = `yt-dlp -f "best[ext=mp4]/best" -o "${outputPath}.mp4" "${url}"`;
