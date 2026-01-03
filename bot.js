@@ -144,8 +144,8 @@ client.on('interactionCreate', async (interaction) => {
         if (format === 'mp3') {
           command = `yt-dlp -x --audio-format mp3 --audio-quality 192 -o "${outputPath}.mp3" "${url}"`;
         } else if (['jpg', 'png', 'webp'].includes(format)) {
-          // For images from social media, download with thumbnail
-          command = `yt-dlp --write-thumbnail -o "${outputPath}" "${url}"`;
+          // For images from social media, get the image directly
+          command = `yt-dlp -f "best" --skip-unavailable-fragments -o "${outputPath}.%(ext)s" "${url}"`;
         } else {
           command = `yt-dlp -f "best[ext=mp4]/best" -o "${outputPath}.mp4" "${url}"`;
         }
