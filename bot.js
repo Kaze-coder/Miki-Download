@@ -61,10 +61,7 @@ async function registerSlashCommands() {
           .setRequired(true)
           .addChoices(
             { name: 'MP4 (Video)', value: 'mp4' },
-            { name: 'MP3 (Audio)', value: 'mp3' },
-            { name: 'JPG (Image)', value: 'jpg' },
-            { name: 'PNG (Image)', value: 'png' },
-            { name: 'WEBP (Image)', value: 'webp' }
+            { name: 'MP3 (Audio)', value: 'mp3' }
           )
       )
       .toJSON()
@@ -143,10 +140,6 @@ client.on('interactionCreate', async (interaction) => {
         let command;
         if (format === 'mp3') {
           command = `yt-dlp -x --audio-format mp3 --audio-quality 192 -o "${outputPath}.mp3" "${url}"`;
-        } else if (['jpg', 'png', 'webp'].includes(format)) {
-          // For images from social media
-          // Use -w (writethumbnail) option untuk extract image/thumbnail
-          command = `yt-dlp -w -o "${outputPath}" "${url}"`;
         } else {
           // For video - try best quality mp4, fallback to best available
           command = `yt-dlp -f "best[ext=mp4]/best" -o "${outputPath}.mp4" "${url}"`;
@@ -172,33 +165,6 @@ client.on('interactionCreate', async (interaction) => {
           let finalPath;
           if (format === 'mp3') {
             finalPath = `${outputPath}.mp3`;
-          } else if (['jpg', 'png', 'webp'].includes(format)) {
-            // Look for image files created recently
-            const files = fs.readdirSync(downloadsDir);
-            const now = Date.now();
-            
-            const imageFiles = files.filter(f => {
-              const filePath = path.join(downloadsDir, f);
-              const ext = path.extname(f).toLowerCase();
-              const stats = fs.statSync(filePath);
-              
-              return (ext === '.jpg' || ext === '.jpeg' || ext === '.png' || ext === '.webp') &&
-                     (now - stats.mtime.getTime()) < 45000; // Created dalam 45 detik terakhir
-            }).sort((a, b) => {
-              const pathA = path.join(downloadsDir, a);
-              const pathB = path.join(downloadsDir, b);
-              return fs.statSync(pathB).mtime.getTime() - fs.statSync(pathA).mtime.getTime();
-            });
-            
-            if (imageFiles.length === 0) {
-              const errorEmbed = new EmbedBuilder()
-                .setColor('#ff0000')
-                .setTitle('❌ Image Tidak Ditemukan')
-                .setDescription('URL mungkin tidak mengandung thumbnail/photo atau format tidak didukung.\n\n**Coba:**\n• URL Instagram post dengan gambar\n• URL Twitter/X dengan media\n• URL TikTok dengan cover');
-              await interaction.editReply({ embeds: [errorEmbed] });
-              return;
-            }
-            finalPath = path.join(downloadsDir, imageFiles[0]);
           } else {
             finalPath = `${outputPath}.mp4`;
           }
