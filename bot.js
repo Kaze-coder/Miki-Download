@@ -61,7 +61,10 @@ async function registerSlashCommands() {
           .setRequired(true)
           .addChoices(
             { name: 'MP4 (Video)', value: 'mp4' },
-            { name: 'MP3 (Audio)', value: 'mp3' }
+            { name: 'MP3 (Audio)', value: 'mp3' },
+            { name: 'JPG (Image)', value: 'jpg' },
+            { name: 'PNG (Image)', value: 'png' },
+            { name: 'WEBP (Image)', value: 'webp' }
           )
       )
       .toJSON()
@@ -140,6 +143,9 @@ client.on('interactionCreate', async (interaction) => {
         let command;
         if (format === 'mp3') {
           command = `yt-dlp -x --audio-format mp3 --audio-quality 192 -o "${outputPath}.mp3" "${url}"`;
+        } else if (['jpg', 'png', 'webp'].includes(format)) {
+          // For images from social media, download with thumbnail
+          command = `yt-dlp --write-thumbnail -o "${outputPath}" "${url}"`;
         } else {
           command = `yt-dlp -f "best[ext=mp4]/best" -o "${outputPath}.mp4" "${url}"`;
         }
@@ -157,8 +163,26 @@ client.on('interactionCreate', async (interaction) => {
           }
 
           // Find the downloaded file
-          const ext = format === 'mp3' ? '.mp3' : '.mp4';
-          const finalPath = `${outputPath}${ext}`;
+          let finalPath;
+          if (format === 'mp3') {
+            finalPath = `${outputPath}.mp3`;
+          } else if (['jpg', 'png', 'webp'].includes(format)) {
+            // Look for thumbnail file that yt-dlp generated
+            const files = fs.readdirSync(downloadsDir);
+            const baseTimestamp = `video_${Date.now()}`;
+            const thumbnailFile = files.find(f => f.startsWith(baseTimestamp) && (f.endsWith('.jpg') || f.endsWith('.png') || f.endsWith('.webp')));
+            if (!thumbnailFile) {
+              const errorEmbed = new EmbedBuilder()
+                .setColor('#ff0000')
+                .setTitle('❌ Error')
+                .setDescription('Image tidak ditemukan. URL mungkin tidak mengandung photo/thumbnail');
+              await interaction.editReply({ embeds: [errorEmbed] });
+              return;
+            }
+            finalPath = path.join(downloadsDir, thumbnailFile);
+          } else {
+            finalPath = `${outputPath}.mp4`;
+          }
 
           if (!fs.existsSync(finalPath)) {
             const errorEmbed = new EmbedBuilder()
