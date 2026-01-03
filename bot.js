@@ -144,19 +144,24 @@ client.on('interactionCreate', async (interaction) => {
         if (format === 'mp3') {
           command = `yt-dlp -x --audio-format mp3 --audio-quality 192 -o "${outputPath}.mp3" "${url}"`;
         } else if (['jpg', 'png', 'webp'].includes(format)) {
-          // For images from social media, get the image directly
-          command = `yt-dlp -f "best" --skip-unavailable-fragments -o "${outputPath}.%(ext)s" "${url}"`;
+          // For images from social media, download with all thumbnails
+          command = `yt-dlp --write-all-thumbnails -o "${outputPath}" "${url}"`;
         } else {
+          // For video - try best quality mp4, fallback to best available
           command = `yt-dlp -f "best[ext=mp4]/best" -o "${outputPath}.mp4" "${url}"`;
         }
 
-        exec(command, async (error, stdout, stderr) => {
+        exec(command, { timeout: 60000 }, async (error, stdout, stderr) => {
           if (error) {
+            let errorMsg = 'Download gagal';
+            if (stderr) errorMsg = stderr.substring(0, 150);
+            else if (error.message) errorMsg = error.message.substring(0, 150);
+            
             const errorEmbed = new EmbedBuilder()
               .setColor('#ff0000')
               .setTitle('❌ Download Gagal')
-              .setDescription(`Error: ${error.message.substring(0, 150)}`)
-              .setFooter({ text: 'Coba lagi dengan URL yang berbeda' });
+              .setDescription(`Error: ${errorMsg}\n\n**Kemungkinan penyebab:**\n• URL tidak valid\n• Medsos membatasi akses\n• Konten sudah dihapus`)
+              .setFooter({ text: 'Coba dengan URL lain atau platform lain' });
 
             await interaction.editReply({ embeds: [errorEmbed] });
             return;
@@ -167,19 +172,32 @@ client.on('interactionCreate', async (interaction) => {
           if (format === 'mp3') {
             finalPath = `${outputPath}.mp3`;
           } else if (['jpg', 'png', 'webp'].includes(format)) {
-            // Look for thumbnail file that yt-dlp generated
+            // Look for image files created recently
             const files = fs.readdirSync(downloadsDir);
-            const baseTimestamp = `video_${Date.now()}`;
-            const thumbnailFile = files.find(f => f.startsWith(baseTimestamp) && (f.endsWith('.jpg') || f.endsWith('.png') || f.endsWith('.webp')));
-            if (!thumbnailFile) {
+            const now = Date.now();
+            
+            const imageFiles = files.filter(f => {
+              const filePath = path.join(downloadsDir, f);
+              const ext = path.extname(f).toLowerCase();
+              const stats = fs.statSync(filePath);
+              
+              return (ext === '.jpg' || ext === '.jpeg' || ext === '.png' || ext === '.webp') &&
+                     (now - stats.mtime.getTime()) < 45000; // Created dalam 45 detik terakhir
+            }).sort((a, b) => {
+              const pathA = path.join(downloadsDir, a);
+              const pathB = path.join(downloadsDir, b);
+              return fs.statSync(pathB).mtime.getTime() - fs.statSync(pathA).mtime.getTime();
+            });
+            
+            if (imageFiles.length === 0) {
               const errorEmbed = new EmbedBuilder()
                 .setColor('#ff0000')
-                .setTitle('❌ Error')
-                .setDescription('Image tidak ditemukan. URL mungkin tidak mengandung photo/thumbnail');
+                .setTitle('❌ Image Tidak Ditemukan')
+                .setDescription('URL mungkin tidak mengandung thumbnail/photo atau format tidak didukung.\n\n**Coba:**\n• URL Instagram post dengan gambar\n• URL Twitter/X dengan media\n• URL TikTok dengan cover');
               await interaction.editReply({ embeds: [errorEmbed] });
               return;
             }
-            finalPath = path.join(downloadsDir, thumbnailFile);
+            finalPath = path.join(downloadsDir, imageFiles[0]);
           } else {
             finalPath = `${outputPath}.mp4`;
           }
@@ -230,12 +248,16 @@ client.on('interactionCreate', async (interaction) => {
               files: [finalPath]
             });
 
-            // Delete file after sending
+            // Delete file after sending (wait untuk ensure download complete)
             setTimeout(() => {
-              if (fs.existsSync(finalPath)) {
-                fs.unlinkSync(finalPath);
+              try {
+                if (fs.existsSync(finalPath)) {
+                  fs.unlinkSync(finalPath);
+                }
+              } catch (err) {
+                console.error('File cleanup:', err.message);
               }
-            }, 5000);
+            }, 8000);
           } catch (sendError) {
             const sendEmbed = new EmbedBuilder()
               .setColor('#ff0000')
