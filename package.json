@@ -1,0 +1,23 @@
+{
+  "name": "discord-video-downloader-bot",
+  "version": "1.0.0",
+  "description": "Discord bot untuk download video dari berbagai platform",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "dev": "nodemon bot.js"
+  },
+  "keywords": ["discord", "bot", "downloader", "youtube", "tiktok"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.14.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
