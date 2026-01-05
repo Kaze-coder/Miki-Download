@@ -2,9 +2,9 @@ FROM node:18-slim
 
 WORKDIR /app
 
-# Install yt-dlp dependencies
+# Install yt-dlp and upscaling dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-pip ffmpeg && rm -rf /var/lib/apt/lists/*
-RUN pip install --break-system-packages --no-cache-dir yt-dlp
+RUN pip install --break-system-packages --no-cache-dir yt-dlp realesrgan pillow
 
 # Copy package files
 COPY package*.json ./
