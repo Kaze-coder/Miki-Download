@@ -2,7 +2,6 @@ const { Client, GatewayIntentBits, SlashCommandBuilder, EmbedBuilder } = require
 const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const axios = require('axios');
 require('dotenv').config();
 
 const token = process.env.DISCORD_TOKEN;
@@ -63,25 +62,6 @@ async function registerSlashCommands() {
           .addChoices(
             { name: 'MP4 (Video)', value: 'mp4' },
             { name: 'MP3 (Audio)', value: 'mp3' }
-          )
-      )
-      .toJSON(),
-    new SlashCommandBuilder()
-      .setName('upscale')
-      .setDescription('Upscale foto dengan AI (2x-4x resolution)')
-      .addAttachmentOption(option =>
-        option.setName('image')
-          .setDescription('Upload image yang mau di-upscale')
-          .setRequired(true)
-      )
-      .addStringOption(option =>
-        option.setName('scale')
-          .setDescription('Berapa kali upscale')
-          .setRequired(false)
-          .addChoices(
-            { name: '2x (Kecil)', value: '2' },
-            { name: '3x (Medium)', value: '3' },
-            { name: '4x (Besar)', value: '4' }
           )
       )
       .toJSON()
@@ -289,104 +269,3 @@ client.on('interactionCreate', async (interaction) => {
           .setTitle('❌ Format Tidak Didukung')
           .setDescription('Hanya JPG, PNG, WEBP yang didukung');
         await interaction.editReply({ embeds: [errorEmbed] });
-        return;
-      }
-
-      const processingEmbed = new EmbedBuilder()
-        .setColor('#0099ff')
-        .setTitle('⏳ Processing...')
-        .setDescription(`Upscaling ${scale}x... mohon tunggu (bisa lama)`)
-        .setFooter({ text: 'Real-ESRGAN sedang bekerja...' });
-
-      await interaction.editReply({ embeds: [processingEmbed] });
-
-      // Download image
-      const inputPath = path.join(downloadsDir, `input_${Date.now()}${ext}`);
-      const outputPath = path.join(downloadsDir, `upscaled_${Date.now()}.png`);
-
-      const response = await axios.get(image.url, { responseType: 'arraybuffer' });
-      fs.writeFileSync(inputPath, response.data);
-
-      // Run Real-ESRGAN upscaling
-      const upscaleCmd = `python3 -m realesrgan.inference -n RealESRGAN_x${scale} -i "${inputPath}" -o "${outputPath}" -s ${scale}`;
-
-      exec(upscaleCmd, { timeout: 120000 }, async (error, stdout, stderr) => {
-        // Clean up input
-        try {
-          if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
-        } catch (e) {}
-
-        if (error) {
-          const errorEmbed = new EmbedBuilder()
-            .setColor('#ff0000')
-            .setTitle('❌ Upscale Gagal')
-            .setDescription('Upscaling gagal. File mungkin terlalu besar atau corrupt.');
-          await interaction.editReply({ embeds: [errorEmbed] });
-          return;
-        }
-
-        if (!fs.existsSync(outputPath)) {
-          const errorEmbed = new EmbedBuilder()
-            .setColor('#ff0000')
-            .setTitle('❌ Error')
-            .setDescription('File output tidak ditemukan');
-          await interaction.editReply({ embeds: [errorEmbed] });
-          return;
-        }
-
-        try {
-          const fileSize = fs.statSync(outputPath).size;
-
-          if (fileSize > 25 * 1024 * 1024) {
-            fs.unlinkSync(outputPath);
-            const sizeEmbed = new EmbedBuilder()
-              .setColor('#ff0000')
-              .setTitle('❌ File Terlalu Besar')
-              .setDescription(`Output ${formatFileSize(fileSize)} melebihi Discord limit (25MB)`);
-            await interaction.editReply({ embeds: [sizeEmbed] });
-            return;
-          }
-
-          const successEmbed = new EmbedBuilder()
-            .setColor('#00ff00')
-            .setTitle('✅ Upscale Berhasil!')
-            .addFields(
-              { name: '📈 Scale', value: `${scale}x`, inline: true },
-              { name: '📁 Format', value: 'PNG', inline: true },
-              { name: '💾 Size', value: formatFileSize(fileSize), inline: true }
-            )
-            .setFooter({ text: 'Upscaled dengan Real-ESRGAN AI' });
-
-          await interaction.editReply({
-            embeds: [successEmbed],
-            files: [outputPath]
-          });
-
-          // Cleanup
-          setTimeout(() => {
-            try {
-              if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-            } catch (e) {}
-          }, 8000);
-
-        } catch (sendError) {
-          const sendEmbed = new EmbedBuilder()
-            .setColor('#ff0000')
-            .setTitle('❌ Error')
-            .setDescription('Gagal mengirim file ke Discord');
-          await interaction.editReply({ embeds: [sendEmbed] });
-        }
-      });
-
-    } catch (error) {
-      const errorEmbed = new EmbedBuilder()
-        .setColor('#ff0000')
-        .setTitle('❌ Error')
-        .setDescription(error.message.substring(0, 100));
-
-      await interaction.editReply({ embeds: [errorEmbed] });
-    }
-  }
-});
-
-client.login(token);
