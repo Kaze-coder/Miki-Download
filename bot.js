@@ -250,22 +250,6 @@ client.on('interactionCreate', async (interaction) => {
       await interaction.editReply({ embeds: [errorEmbed] });
     }
   }
+});
 
-  // Upscale command
-  if (commandName === 'upscale') {
-    const image = options.getAttachment('image');
-    const scale = options.getString('scale') || '2';
-
-    await interaction.deferReply();
-
-    try {
-      // Validate image file
-      const validExt = ['.jpg', '.jpeg', '.png', '.webp'];
-      const ext = path.extname(image.name).toLowerCase();
-      
-      if (!validExt.includes(ext)) {
-        const errorEmbed = new EmbedBuilder()
-          .setColor('#ff0000')
-          .setTitle('❌ Format Tidak Didukung')
-          .setDescription('Hanya JPG, PNG, WEBP yang didukung');
-        await interaction.editReply({ embeds: [errorEmbed] });
+client.login(token);
